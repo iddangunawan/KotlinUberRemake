@@ -108,11 +108,8 @@ class SplashScreenActivity : AppCompatActivity() {
 
                 override fun onDataChange(snapshot: DataSnapshot) {
                     if (snapshot.exists()) {
-                        Toast.makeText(
-                            this@SplashScreenActivity,
-                            "User already register!",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        val model = snapshot.getValue(DriverInfoModel::class.java)
+                        goToHomeActivity(model)
                     } else {
                         showRegisterLayout()
                     }
@@ -123,7 +120,6 @@ class SplashScreenActivity : AppCompatActivity() {
     private fun showRegisterLayout() {
         val builder = AlertDialog.Builder(this, R.style.DialogTheme)
         val itemView = LayoutInflater.from(this).inflate(R.layout.layout_register, null)
-
         val edtFirstName = itemView.findViewById<View>(R.id.edt_first_name) as TextInputEditText
         val edtLastName = itemView.findViewById<View>(R.id.edt_last_name) as TextInputEditText
         val edtPhoneNumber = itemView.findViewById<View>(R.id.edt_phone_number) as TextInputEditText
@@ -195,6 +191,7 @@ class SplashScreenActivity : AppCompatActivity() {
                                 Toast.LENGTH_SHORT
                             ).show()
                             dialog.dismiss()
+                            goToHomeActivity(driverInfoModel)
                             progress_bar.visibility = View.GONE
                         }
                 }
@@ -218,5 +215,11 @@ class SplashScreenActivity : AppCompatActivity() {
                 .build()
             , LOGIN_REQUEST_CODE
         )
+    }
+
+    private fun goToHomeActivity(model: DriverInfoModel?) {
+        Common.currentUser = model
+        startActivity(Intent(this, DriverHomeActivity::class.java))
+        finish()
     }
 }
