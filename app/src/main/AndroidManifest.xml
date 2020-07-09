@@ -42,7 +42,6 @@
             android:name=".DriverHomeActivity"
             android:label="@string/title_activity_driver_home"
             android:theme="@style/AppTheme.NoActionBar" />
-        <activity android:name=".HomeActivity" />
     </application>
 
 </manifest>

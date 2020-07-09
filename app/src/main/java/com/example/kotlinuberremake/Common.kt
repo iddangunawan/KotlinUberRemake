@@ -8,5 +8,16 @@ import com.example.kotlinuberremake.model.DriverInfoModel
 object Common {
     val DRIVER_INFO_REFERENCE: String = "DriverInfo"
     val DRIVERS_LOCATION_REFERENCE: String = "DriversLocation"
+
     var currentUser: DriverInfoModel? = null
+
+    fun buildWelcomeMessage(): String {
+        return if (currentUser != null)
+            StringBuilder("Welcome ")
+                .append(currentUser?.firstName)
+                .append(" ")
+                .append(currentUser?.lastName).toString()
+        else
+            ""
+    }
 }
