@@ -43,9 +43,8 @@ class DriverHomeActivity : AppCompatActivity() {
     private lateinit var navController: NavController
     private lateinit var waitingDialog: AlertDialog
     private lateinit var storageReference: StorageReference
-
+    private lateinit var imgAvatar: ImageView
     private var imageUri: Uri? = null
-    private var imgAvatar: ImageView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,6 +61,35 @@ class DriverHomeActivity : AppCompatActivity() {
         appBarConfiguration = AppBarConfiguration(setOf(R.id.nav_home), drawerLayout)
         setupActionBarWithNavController(navController, appBarConfiguration)
         navView.setupWithNavController(navController)
+
+        init()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == PICK_IMAGE_REQUEST && resultCode == Activity.RESULT_OK) {
+            if (data != null && data.data != null) {
+                imageUri = data.data
+                imgAvatar.setImageURI(imageUri)
+
+                showDialogUpload()
+            }
+        }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        menuInflater.inflate(R.menu.driver_home, menu)
+        return true
+    }
+
+    override fun onSupportNavigateUp(): Boolean {
+        val navController = findNavController(R.id.nav_host_fragment)
+        return navController.navigateUp(appBarConfiguration) || super.onSupportNavigateUp()
+    }
+
+    private fun init() {
         navView.setNavigationItemSelectedListener { item ->
             if (item.itemId == R.id.nav_sign_out) {
                 val builder: AlertDialog.Builder = AlertDialog.Builder(this)
@@ -117,27 +145,17 @@ class DriverHomeActivity : AppCompatActivity() {
         ) {
             Glide.with(this)
                 .load(Common.currentUser?.avatar)
-                .into(imgAvatar!!)
+                .into(imgAvatar)
         }
 
-        imgAvatar?.setOnClickListener {
+        imgAvatar.setOnClickListener {
             val intent = Intent()
             intent.type = "image/*"
             intent.action = Intent.ACTION_GET_CONTENT
-            startActivityForResult(intent, PICK_IMAGE_REQUEST)
-        }
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-
-        if (requestCode == PICK_IMAGE_REQUEST && resultCode == Activity.RESULT_OK) {
-            if (data != null && data.data != null) {
-                imageUri = data.data
-                imgAvatar?.setImageURI(imageUri)
-
-                showDialogUpload()
-            }
+            startActivityForResult(
+                Intent.createChooser(intent, "Select picture"),
+                PICK_IMAGE_REQUEST
+            )
         }
     }
 
@@ -147,7 +165,7 @@ class DriverHomeActivity : AppCompatActivity() {
             .setMessage("Do you want to change avatar ?")
             .setCancelable(false)
             .setNegativeButton("Cancel") { dialogInterface, p1 -> dialogInterface.dismiss() }
-            .setPositiveButton("Upload") { dialogInterface, p1 ->
+            .setPositiveButton("Change") { dialogInterface, p1 ->
                 if (imageUri != null) {
                     waitingDialog.setMessage("Uploading ...")
                     waitingDialog.show()
@@ -166,13 +184,12 @@ class DriverHomeActivity : AppCompatActivity() {
                         }
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
-                                avatarFolder.downloadUrl
-                                    .addOnSuccessListener { uri ->
-                                        val updateData: HashMap<String, Any> = HashMap()
-                                        updateData["avatar"] = uri.toString()
+                                avatarFolder.downloadUrl.addOnSuccessListener { uri ->
+                                    val updateData = HashMap<String, Any>()
+                                    updateData["avatar"] = uri.toString()
 
-                                        UserUtils.updateUser(drawerLayout, updateData)
-                                    }
+                                    UserUtils.updateUser(drawerLayout, updateData)
+                                }
                             }
                             waitingDialog.dismiss()
                         }
@@ -193,16 +210,5 @@ class DriverHomeActivity : AppCompatActivity() {
                 .setTextColor(resources.getColor(R.color.colorAccent))
         }
         dialog.show()
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        menuInflater.inflate(R.menu.driver_home, menu)
-        return true
-    }
-
-    override fun onSupportNavigateUp(): Boolean {
-        val navController = findNavController(R.id.nav_host_fragment)
-        return navController.navigateUp(appBarConfiguration) || super.onSupportNavigateUp()
     }
 }
