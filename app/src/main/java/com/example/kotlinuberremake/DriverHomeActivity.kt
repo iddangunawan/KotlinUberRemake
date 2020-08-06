@@ -11,6 +11,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
+import androidx.core.content.ContextCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.navigation.NavController
 import androidx.navigation.findNavController
@@ -98,23 +99,21 @@ class DriverHomeActivity : AppCompatActivity() {
                     .setCancelable(false)
                     .setNegativeButton("Cancel") { dialogInterface, p1 -> dialogInterface.dismiss() }
                     .setPositiveButton("Sign out") { dialogInterface, p1 ->
-                        GeoFire(
-                            FirebaseDatabase.getInstance()
-                                .getReference(Common.DRIVERS_LOCATION_REFERENCE)
-                        ).removeLocation(FirebaseAuth.getInstance().currentUser!!.uid)
+                        GeoFire(FirebaseDatabase.getInstance().getReference(Common.DRIVERS_LOCATION_REFERENCE)).removeLocation(
+                            FirebaseAuth.getInstance().currentUser!!.uid
+                        )
                         FirebaseAuth.getInstance().signOut()
                         val intent = Intent(this, SplashScreenActivity::class.java)
-                        intent.flags =
-                            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                         startActivity(intent)
                         finish()
                     }
                 val dialog: AlertDialog = builder.create()
                 dialog.setOnShowListener { dialogInterface ->
                     dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-                        .setTextColor(resources.getColor(android.R.color.holo_red_dark))
+                        .setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
                     dialog.getButton(AlertDialog.BUTTON_NEGATIVE)
-                        .setTextColor(resources.getColor(R.color.colorAccent))
+                        .setTextColor(ContextCompat.getColor(this, R.color.colorAccent))
                 }
                 dialog.show()
             }
@@ -139,10 +138,7 @@ class DriverHomeActivity : AppCompatActivity() {
         txtPhone.text = Common.currentUser?.phoneNumber ?: ""
         txtStar.text = Common.currentUser?.rating.toString()
 
-        if (Common.currentUser != null && Common.currentUser?.avatar != "" && !TextUtils.isEmpty(
-                Common.currentUser?.avatar
-            )
-        ) {
+        if (Common.currentUser != null && Common.currentUser?.avatar != "" && !TextUtils.isEmpty(Common.currentUser?.avatar)) {
             Glide.with(this)
                 .load(Common.currentUser?.avatar)
                 .into(imgAvatar)
@@ -176,11 +172,7 @@ class DriverHomeActivity : AppCompatActivity() {
                     avatarFolder.putFile(imageUri!!)
                         .addOnFailureListener { error ->
                             waitingDialog.dismiss()
-                            Snackbar.make(
-                                drawerLayout,
-                                error.message.toString(),
-                                Snackbar.LENGTH_SHORT
-                            ).show()
+                            Snackbar.make(drawerLayout, error.message.toString(), Snackbar.LENGTH_SHORT).show()
                         }
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
@@ -194,8 +186,7 @@ class DriverHomeActivity : AppCompatActivity() {
                             waitingDialog.dismiss()
                         }
                         .addOnProgressListener { taskSnapshot ->
-                            val progress =
-                                (100.0 * taskSnapshot.bytesTransferred / taskSnapshot.totalByteCount)
+                            val progress = (100.0 * taskSnapshot.bytesTransferred / taskSnapshot.totalByteCount)
                             waitingDialog.setMessage(
                                 StringBuilder("Uploading: ").append(progress).append("%")
                             )
@@ -205,9 +196,9 @@ class DriverHomeActivity : AppCompatActivity() {
         val dialog: AlertDialog = builder.create()
         dialog.setOnShowListener { dialogInterface ->
             dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-                .setTextColor(resources.getColor(android.R.color.holo_red_dark))
+                .setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
             dialog.getButton(AlertDialog.BUTTON_NEGATIVE)
-                .setTextColor(resources.getColor(R.color.colorAccent))
+                .setTextColor(ContextCompat.getColor(this, R.color.colorAccent))
         }
         dialog.show()
     }

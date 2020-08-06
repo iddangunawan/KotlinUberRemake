@@ -1,6 +1,10 @@
 package com.example.kotlinuberremake.ui.home
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.res.Resources
+import android.location.Address
+import android.location.Geocoder
 import android.os.Bundle
 import android.os.Looper
 import android.util.Log
@@ -9,6 +13,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.RelativeLayout
 import android.widget.Toast
+import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.example.kotlinuberremake.Common
@@ -31,6 +36,8 @@ import com.karumi.dexter.listener.PermissionDeniedResponse
 import com.karumi.dexter.listener.PermissionGrantedResponse
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.single.PermissionListener
+import java.io.IOException
+import java.util.*
 
 class HomeFragment : Fragment(), OnMapReadyCallback {
 
@@ -45,9 +52,9 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
 
     // Online system
     private lateinit var onlineRef: DatabaseReference
-    private lateinit var currentUserRef: DatabaseReference
     private lateinit var driversLocationRef: DatabaseReference
     private lateinit var geoFire: GeoFire
+    private var currentUserRef: DatabaseReference? = null
 
     private val onlineValueEventListener = object : ValueEventListener {
         override fun onCancelled(error: DatabaseError) {
@@ -55,17 +62,13 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
         }
 
         override fun onDataChange(snapshot: DataSnapshot) {
-            if (snapshot.exists()) {
-                currentUserRef.onDisconnect().removeValue()
+            if (snapshot.exists() && currentUserRef != null) {
+                currentUserRef!!.onDisconnect().removeValue()
             }
         }
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         homeViewModel = ViewModelProvider(this).get(HomeViewModel::class.java)
         val root = inflater.inflate(R.layout.fragment_home, container, false)
 
@@ -97,36 +100,38 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
 
         // Request permission
         Dexter.withContext(requireContext())
-            .withPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
+            .withPermission(Manifest.permission.ACCESS_FINE_LOCATION)
             .withListener(object : PermissionListener {
                 override fun onPermissionGranted(p0: PermissionGrantedResponse?) {
                     // Enable button first
+                    if (ActivityCompat.checkSelfPermission(
+                            requireContext(),
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                        ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                            requireContext(),
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        ) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        Snackbar.make(view!!, getString(R.string.permission_require), Snackbar.LENGTH_SHORT).show()
+                        return
+                    }
+
                     mMap.isMyLocationEnabled = true
                     mMap.uiSettings.isMyLocationButtonEnabled = true
-                    mMap.setOnMyLocationClickListener {
+                    mMap.setOnMyLocationButtonClickListener {
                         fusedLocationProviderClient.lastLocation
                             .addOnFailureListener { e ->
-                                Toast.makeText(
-                                    context,
-                                    "Permission ${e.message} was denied",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                Toast.makeText(context, "Permission ${e.message} was denied", Toast.LENGTH_SHORT).show()
                             }
                             .addOnSuccessListener { location ->
                                 val userLatLng = LatLng(location.latitude, location.longitude)
-                                mMap.animateCamera(
-                                    CameraUpdateFactory.newLatLngZoom(
-                                        userLatLng,
-                                        18f
-                                    )
-                                )
+                                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userLatLng, 18f))
                             }
                         true
                     }
 
                     // Layout
-                    val view =
-                        mapFragment.requireView().findViewById<View>("1".toInt()).parent!! as View
+                    val view = mapFragment.requireView().findViewById<View>("1".toInt()).parent!! as View
                     val locationButton = view.findViewById<View>("2".toInt())
                     val params = locationButton?.layoutParams as RelativeLayout.LayoutParams
                     params.addRule(RelativeLayout.ALIGN_TOP, 0)
@@ -134,29 +139,17 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
                     params.bottomMargin = 50
                 }
 
-                override fun onPermissionRationaleShouldBeShown(
-                    p0: PermissionRequest?,
-                    p1: PermissionToken?
-                ) {
+                override fun onPermissionRationaleShouldBeShown(p0: PermissionRequest?, p1: PermissionToken?) {
 
                 }
 
                 override fun onPermissionDenied(p0: PermissionDeniedResponse?) {
-                    Toast.makeText(
-                        context,
-                        "Permission ${p0?.permissionName} was denied",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(context, "Permission ${p0?.permissionName} was denied", Toast.LENGTH_SHORT).show()
                 }
             }).check()
 
         try {
-            val success = googleMap.setMapStyle(
-                MapStyleOptions.loadRawResourceStyle(
-                    context,
-                    R.raw.uber_maps_style
-                )
-            )
+            val success = googleMap.setMapStyle(MapStyleOptions.loadRawResourceStyle(context, R.raw.uber_maps_style))
 
             if (!success)
                 Log.e("ERROR", "Style parsing error")
@@ -167,16 +160,6 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
 
     private fun init() {
         onlineRef = FirebaseDatabase.getInstance().reference.child(".info/connected")
-        driversLocationRef =
-            FirebaseDatabase.getInstance().getReference(Common.DRIVERS_LOCATION_REFERENCE)
-        currentUserRef =
-            FirebaseDatabase.getInstance().getReference(Common.DRIVERS_LOCATION_REFERENCE).child(
-                FirebaseAuth.getInstance().currentUser!!.uid
-            )
-
-        geoFire = GeoFire(driversLocationRef)
-
-        registerOnlineSystem()
 
         locationRequest = LocationRequest()
         locationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
@@ -188,39 +171,56 @@ class HomeFragment : Fragment(), OnMapReadyCallback {
             override fun onLocationResult(locationResult: LocationResult?) {
                 super.onLocationResult(locationResult)
 
-                val newPos = LatLng(
-                    locationResult?.lastLocation?.latitude!!,
-                    locationResult.lastLocation?.longitude!!
-                )
+                val newPos = LatLng(locationResult?.lastLocation!!.latitude, locationResult.lastLocation.longitude)
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(newPos, 18f))
 
-                // Update location
-                geoFire.setLocation(
-                    FirebaseAuth.getInstance().currentUser!!.uid,
-                    GeoLocation(
+                val geoCoder = Geocoder(requireContext(), Locale.getDefault())
+                val addressList: List<Address>?
+
+                try {
+                    addressList = geoCoder.getFromLocation(
                         locationResult.lastLocation.latitude,
-                        locationResult.lastLocation.longitude
+                        locationResult.lastLocation.longitude,
+                        1
                     )
-                ) { key: String?, error: DatabaseError? ->
-                    if (error != null) {
-                        Snackbar.make(
-                            mapFragment.requireView(),
-                            error.message,
-                            Snackbar.LENGTH_LONG
-                        ).show()
-                    } else {
-                        Snackbar.make(
-                            mapFragment.requireView(),
-                            "You're online!",
-                            Snackbar.LENGTH_SHORT
-                        ).show()
+
+                    val cityName = addressList[0].locality
+
+                    driversLocationRef =
+                        FirebaseDatabase.getInstance().getReference(Common.DRIVERS_LOCATION_REFERENCE).child(cityName)
+                    currentUserRef = driversLocationRef.child(FirebaseAuth.getInstance().currentUser!!.uid)
+                    geoFire = GeoFire(driversLocationRef)
+
+                    // Update location
+                    geoFire.setLocation(
+                        FirebaseAuth.getInstance().currentUser!!.uid,
+                        GeoLocation(locationResult.lastLocation.latitude, locationResult.lastLocation.longitude)
+                    ) { key: String?, error: DatabaseError? ->
+                        if (error != null)
+                            Snackbar.make(mapFragment.requireView(), error.message, Snackbar.LENGTH_LONG).show()
+                        else
+                            Snackbar.make(mapFragment.requireView(), "You're online!", Snackbar.LENGTH_SHORT).show()
                     }
+
+                    registerOnlineSystem()
+
+                } catch (e: IOException) {
+                    Snackbar.make(requireView(), e.message.toString(), Snackbar.LENGTH_LONG).show()
                 }
             }
         }
 
-        fusedLocationProviderClient =
-            LocationServices.getFusedLocationProviderClient(requireContext())
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(requireContext())
+        if (ActivityCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
         fusedLocationProviderClient.requestLocationUpdates(
             locationRequest,
             locationCallback,

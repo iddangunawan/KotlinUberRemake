@@ -83,6 +83,7 @@ class SplashScreenActivity : AppCompatActivity() {
         listener = FirebaseAuth.AuthStateListener { myFireBaseAuth ->
             val user = myFireBaseAuth.currentUser
             if (user != null) {
+                // Update token
                 FirebaseInstanceId.getInstance()
                     .instanceId
                     .addOnFailureListener { error ->
@@ -101,18 +102,16 @@ class SplashScreenActivity : AppCompatActivity() {
 
     @SuppressLint("CheckResult")
     private fun delaySplashScreen() {
-        Completable.timer(3, TimeUnit.SECONDS, AndroidSchedulers.mainThread())
-            .subscribe {
-                firebaseAuth.addAuthStateListener(listener)
-            }
+        Completable.timer(3, TimeUnit.SECONDS, AndroidSchedulers.mainThread()).subscribe {
+            firebaseAuth.addAuthStateListener(listener)
+        }
     }
 
     private fun checkUserFromFirebase() {
         driverInfoRef.child(FirebaseAuth.getInstance().currentUser!!.uid)
             .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onCancelled(error: DatabaseError) {
-                    Toast.makeText(this@SplashScreenActivity, error.message, Toast.LENGTH_SHORT)
-                        .show()
+                    Toast.makeText(this@SplashScreenActivity, error.message, Toast.LENGTH_SHORT).show()
                 }
 
                 override fun onDataChange(snapshot: DataSnapshot) {
@@ -135,9 +134,7 @@ class SplashScreenActivity : AppCompatActivity() {
         val btnContinue = itemView.findViewById<View>(R.id.btn_register) as Button
 
         // Set data
-        if (FirebaseAuth.getInstance().currentUser!!.phoneNumber != null &&
-            !TextUtils.isDigitsOnly(FirebaseAuth.getInstance().currentUser!!.phoneNumber)
-        ) {
+        if (FirebaseAuth.getInstance().currentUser!!.phoneNumber != null && !TextUtils.isDigitsOnly(FirebaseAuth.getInstance().currentUser!!.phoneNumber)) {
             edtPhoneNumber.setText(FirebaseAuth.getInstance().currentUser!!.phoneNumber)
         }
 
@@ -150,29 +147,15 @@ class SplashScreenActivity : AppCompatActivity() {
         btnContinue.setOnClickListener {
             when {
                 TextUtils.isDigitsOnly(edtFirstName.text.toString()) -> {
-                    Toast.makeText(
-                        this@SplashScreenActivity,
-                        "Please enter First Name",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(this@SplashScreenActivity, "Please enter First Name", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
                 TextUtils.isDigitsOnly(edtLastName.text.toString()) -> {
-                    Toast.makeText(
-                        this@SplashScreenActivity,
-                        "Please enter Last Name",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(this@SplashScreenActivity, "Please enter Last Name", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
-                edtPhoneNumber.text.toString() == "" && !PhoneNumberUtils.isGlobalPhoneNumber(
-                    edtPhoneNumber.text.toString()
-                ) -> {
-                    Toast.makeText(
-                        this@SplashScreenActivity,
-                        "Please enter Phone Number",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                edtPhoneNumber.text.toString() == "" && !PhoneNumberUtils.isGlobalPhoneNumber(edtPhoneNumber.text.toString()) -> {
+                    Toast.makeText(this@SplashScreenActivity, "Please enter Phone Number", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
                 else -> {
@@ -185,20 +168,12 @@ class SplashScreenActivity : AppCompatActivity() {
                     driverInfoRef.child(FirebaseAuth.getInstance().currentUser!!.uid)
                         .setValue(driverInfoModel)
                         .addOnFailureListener { e ->
-                            Toast.makeText(
-                                this@SplashScreenActivity,
-                                "" + e.message,
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            Toast.makeText(this@SplashScreenActivity, e.message, Toast.LENGTH_SHORT).show()
                             dialog.dismiss()
                             progress_bar.visibility = View.GONE
                         }
                         .addOnSuccessListener {
-                            Toast.makeText(
-                                this@SplashScreenActivity,
-                                "Register Successfully!",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            Toast.makeText(this@SplashScreenActivity, "Register Successfully!", Toast.LENGTH_SHORT).show()
                             dialog.dismiss()
                             goToHomeActivity(driverInfoModel)
                             progress_bar.visibility = View.GONE
